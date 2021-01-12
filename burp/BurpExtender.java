@@ -1,27 +1,58 @@
 
 package burp;
 
-import java.awt.Component;
-import java.io.PrintWriter;
+import org.apache.http.*;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHeaders;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.params.ClientPNames;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.conn.ssl.TrustStrategy;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.*;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.params.CoreConnectionPNames;
+import org.apache.http.params.HttpParams;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.util.EntityUtils;
 
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import javax.net.ssl.*;
 import javax.swing.*;
-
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Base64;
-
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
-
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-import org.json.*;
+import java.util.Properties;
 
 
 public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContextMenuFactory {
@@ -63,7 +94,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
     final JTextArea email = new JTextArea("root@localhost.com", 1, 20);
     final JTextArea password = new JTextArea("Qwerty1234", 1, 20);
 
-    String[] projects = { };
+    String[] projects = {};
     JComboBox list_projects = new JComboBox(projects);
 
     ////Labels
@@ -84,7 +115,6 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
     final JLabel l_empty5 = new JLabel(" ");
     final JLabel l_empty6 = new JLabel(" ");
     private burp.IBurpExtenderCallbacks callbacks;
-
 
 
     private burp.IExtensionHelpers helpers;
@@ -123,7 +153,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
                 //l_basic_auth_login.setBorder(BorderFactory.createEmptyBorder(20, 0, 0, 0));
                 boxHorizontal3.add(l_basic_auth_login);
                 boxHorizontal3.add(basic_auth_login);
-                if(!callbacks.loadExtensionSetting("PCF_URL").equals("")){
+                if (!callbacks.loadExtensionSetting("PCF_URL").equals("")) {
                     load_settings();
                 }
                 boxHorizontal3.add(l_basic_auth_password);
@@ -254,26 +284,26 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
         return jPanel1;
     }
 
-    public void save_settings(Boolean with_pwd){
+    public void save_settings(Boolean with_pwd) {
         callbacks.saveExtensionSetting("PCF_BASIC_LOGIN", basic_auth_login.getText());
-        callbacks.saveExtensionSetting("PCF_URL", URL_form.getText() );
-        callbacks.saveExtensionSetting("PCF_EMAIL", email.getText() );
-        callbacks.saveExtensionSetting("PCF_TOKEN", token.getText() );
-        callbacks.saveExtensionSetting("PCF_PROJECT", ((ComboItem)list_projects.getSelectedItem()).getValue() );
-        if (with_pwd){
+        callbacks.saveExtensionSetting("PCF_URL", URL_form.getText());
+        callbacks.saveExtensionSetting("PCF_EMAIL", email.getText());
+        callbacks.saveExtensionSetting("PCF_TOKEN", token.getText());
+        callbacks.saveExtensionSetting("PCF_PROJECT", ((ComboItem) list_projects.getSelectedItem()).getValue());
+        if (with_pwd) {
             l_empty6.setText("Saved PCF settings (with password)!");
-            callbacks.saveExtensionSetting("PCF_PASSWORD", password.getText() );
+            callbacks.saveExtensionSetting("PCF_PASSWORD", password.getText());
             callbacks.saveExtensionSetting("PCF_BASIC_PASSWORD", basic_auth_password.getText());
         } else {
             l_empty6.setText("Saved PCF settings (without password)!");
-            callbacks.saveExtensionSetting("PCF_PASSWORD", "" );
+            callbacks.saveExtensionSetting("PCF_PASSWORD", "");
             callbacks.saveExtensionSetting("PCF_BASIC_PASSWORD", "");
         }
     }
 
-    public void check_token(){
+    public void check_token() {
         String token_s = token.getText();
-        if (token_s.equals("")){
+        if (token_s.equals("")) {
             l_empty6.setText("Empty token!");
             return;
         }
@@ -281,7 +311,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
         jo.put("access_token", token_s);
 
         JSONObject result_json = pcf_request("api/v1/check_token", jo);
-        if(result_json.has("errors")){
+        if (result_json.has("errors")) {
             l_empty6.setText(result_json.getJSONArray("errors").get(0).toString());
             return;
         }
@@ -289,7 +319,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
         return;
     }
 
-    public void load_settings(){
+    public void load_settings() {
         l_empty6.setText("Loaded PCF settings!");
         basic_auth_login.setText(callbacks.loadExtensionSetting("PCF_BASIC_LOGIN"));
         URL_form.setText(callbacks.loadExtensionSetting("PCF_URL"));
@@ -297,12 +327,10 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
         token.setText(callbacks.loadExtensionSetting("PCF_TOKEN"));
         list_projects.removeAllItems();
         String project_uuid = callbacks.loadExtensionSetting("PCF_PROJECT");
-        list_projects.addItem(new ComboItem("Saved project ("+project_uuid+ ")", project_uuid));
+        list_projects.addItem(new ComboItem("Saved project (" + project_uuid + ")", project_uuid));
         password.setText(callbacks.loadExtensionSetting("PCF_PASSWORD"));
         basic_auth_password.setText(callbacks.loadExtensionSetting("PCF_BASIC_PASSWORD"));
     }
-
-
 
 
     public List<JMenuItem> createMenuItems(final burp.IContextMenuInvocation invocation) {
@@ -366,25 +394,24 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
                     callbacks.printOutput("Details: " + issue_details);
                     callbacks.printOutput("Rem details: " + issue_rem_details);
 
-                    if (issue_name.equals("")){
+                    if (issue_name.equals("")) {
                         return;
                     }
 
 
-
                     String f_description = issue_details;
-                    if (f_description==null){
+                    if (f_description == null) {
                         f_description = "";
-                        if (issue_background != null){
+                        if (issue_background != null) {
                             f_description = issue_background;
                         }
                     }
 
                     String f_solution = issue_rem_details;
 
-                    if (f_solution == null){
+                    if (f_solution == null) {
                         f_solution = "";
-                        if (issue_rem_background != null){
+                        if (issue_rem_background != null) {
                             f_solution = issue_rem_background;
                         }
                     }
@@ -438,7 +465,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
                             } else {
                                 services.put(port_uuid, concat_json_Array(services.getJSONArray(port_uuid), hostnames_json));
                             }
-                        }catch (Exception e){
+                        } catch (Exception e) {
 
                         }
                     }
@@ -446,7 +473,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
                     pcf_add_issue(issue_name, f_description, f_solution, "", "", cvss, services);
 
                 }
-            }catch(Exception e){
+            } catch (Exception e) {
                 callbacks.printError(e.toString());
             }
 
@@ -483,8 +510,8 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
         list_projects.removeAllItems();
         for (int i = 0; i < projects_json.length(); i++) {
             JSONObject current_project = projects_json.getJSONObject(i);
-            if (current_project.getString("status").equals("active")){
-                list_projects.addItem(new ComboItem(current_project.getString("name") + " ("+current_project.getString("id")+ ")", current_project.getString("id")));
+            if (current_project.getString("status").equals("active")) {
+                list_projects.addItem(new ComboItem(current_project.getString("name") + " (" + current_project.getString("id") + ")", current_project.getString("id")));
             }
         }
 
@@ -499,7 +526,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
             return host_obj.getString("id");
         }
 
-        String project_uuid_s = ((ComboItem)list_projects.getSelectedItem()).getValue();
+        String project_uuid_s = ((ComboItem) list_projects.getSelectedItem()).getValue();
         JSONObject jo = new JSONObject();
         String access_token = this.token.getText();
         jo.put("access_token", access_token);
@@ -511,7 +538,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
 
     public String pcf_add_port(String host_uuid, int port, String protocol) {
         String access_token = this.token.getText();
-        String project_uuid_s = ((ComboItem)list_projects.getSelectedItem()).getValue();
+        String project_uuid_s = ((ComboItem) list_projects.getSelectedItem()).getValue();
         JSONObject jo = new JSONObject();
         jo.put("access_token", access_token);
         String path = "api/v1/project/" + project_uuid_s + "/host/" + host_uuid + "/info";
@@ -564,7 +591,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
 
     public String pcf_add_hostname(String ip) {
         String access_token = this.token.getText();
-        String project_uuid_s = ((ComboItem)list_projects.getSelectedItem()).getValue();
+        String project_uuid_s = ((ComboItem) list_projects.getSelectedItem()).getValue();
         JSONObject jo = new JSONObject();
         jo.put("access_token", access_token);
         String path = "api/v1/project/" + project_uuid_s + "/hosts";
@@ -590,7 +617,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
 
     public JSONObject pcf_get_host_by_ip(String ip) {
         String access_token = this.token.getText();
-        String project_uuid_s = ((ComboItem)list_projects.getSelectedItem()).getValue();
+        String project_uuid_s = ((ComboItem) list_projects.getSelectedItem()).getValue();
         JSONObject jo = new JSONObject();
         jo.put("access_token", access_token);
         String path = "api/v1/project/" + project_uuid_s + "/hosts";
@@ -608,7 +635,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
 
     public JSONObject pcf_get_host_by_id(String host_uuid) {
         String access_token = this.token.getText();
-        String project_uuid_s = ((ComboItem)list_projects.getSelectedItem()).getValue();
+        String project_uuid_s = ((ComboItem) list_projects.getSelectedItem()).getValue();
         JSONObject jo = new JSONObject();
         jo.put("access_token", access_token);
         String path = "api/v1/project/" + project_uuid_s + "/host/" + host_uuid + "/info";
@@ -632,7 +659,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
         jo.put("param", param);
         jo.put("services", services);
         jo.put("dublicate_find", true);
-        String path = "api/v1/project/"+ ((ComboItem)list_projects.getSelectedItem()).getValue() + "/issues/create";
+        String path = "api/v1/project/" + ((ComboItem) list_projects.getSelectedItem()).getValue() + "/issues/create";
         String issue_uuid = pcf_request(path, jo).getString("issue_uuid");
         return issue_uuid;
     }
@@ -654,70 +681,105 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
             callbacks.printOutput("URL: " + url_string);
             callbacks.printOutput("Body: " + data);
 
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request;
+            Properties props = System.getProperties();
+            props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
+            props.setProperty("com.sun.net.ssl.checkRevocation", Boolean.FALSE.toString());
+
+
+            //######################################################################
+
+            org.apache.http.ssl.SSLContextBuilder sslContextBuilder = SSLContextBuilder.create();
+            sslContextBuilder.loadTrustMaterial(new org.apache.http.conn.ssl.TrustSelfSignedStrategy());
+            SSLContext sslContext = sslContextBuilder.build();
+            org.apache.http.conn.ssl.SSLConnectionSocketFactory sslSocketFactory =
+                    new SSLConnectionSocketFactory(sslContext, new org.apache.http.conn.ssl.DefaultHostnameVerifier());
+
+            HttpClientBuilder httpClientBuilder = HttpClients.custom().setSSLSocketFactory(sslSocketFactory);
+            //CloseableHttpClient client = httpClientBuilder.build();
+
+
+            SSLContextBuilder builder = new SSLContextBuilder();
+            builder.loadTrustMaterial(null, new TrustSelfSignedStrategy());
+            SSLConnectionSocketFactory sslConnectionSocketFactory = new SSLConnectionSocketFactory(builder.build(), NoopHostnameVerifier.INSTANCE);
+            Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
+                    .register("http", new PlainConnectionSocketFactory())
+                    .register("https", sslConnectionSocketFactory)
+                    .build();
+
+            PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
+            cm.setMaxTotal(100);
+
+            RequestConfig.Builder requestBuilder = RequestConfig.custom();
+            requestBuilder.setConnectTimeout(5000);
+            requestBuilder.setConnectionRequestTimeout(5000);
+
+            //#################################################
+
+
+            RequestConfig requestConfig = RequestConfig.custom()
+                    // Determines the timeout in milliseconds until a connection is established.
+                    .setConnectTimeout(5_000)
+                    // Defines the socket timeout in milliseconds,
+                    // which is the timeout for waiting for data or, put differently,
+                    // a maximum period inactivity between two consecutive data packets).
+                    .setSocketTimeout(5_000)
+                    // Returns the timeout in milliseconds used when requesting a connection
+                    // from the connection manager.
+                    .setConnectionRequestTimeout(5_000)
+                    .build();
+
+            CloseableHttpClient client = HttpClients.custom()
+                    .setSSLSocketFactory(sslConnectionSocketFactory)
+                    .setConnectionManager(cm)
+                    .setDefaultRequestConfig(requestConfig)
+                    .build();
+
+            //CloseableHttpClient client = HttpClients.createDefault();
+            HttpPost httpPost = new HttpPost(url_string);
+            httpPost.addHeader("Content-Type", "application/json");
+            httpPost.setEntity(new StringEntity(data));
+
 
             if (!(basic_login.equals("") && basic_password.equals(""))) {
                 String auth = basic_login + ":" + basic_password;
                 byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8));
                 String authHeaderValue = "Basic " + new String(encodedAuth);
-                request = HttpRequest.newBuilder()
-                        .uri(URI.create(url_string))
-                        .POST(HttpRequest.BodyPublishers.ofString(data))
-                        .header("Content-Type", "application/json")
-                        .header("Authorization", authHeaderValue)
-                        .timeout(Duration.ofSeconds(5))
-                        .build();
-            } else {
-                request = HttpRequest.newBuilder()
-                        .uri(URI.create(url_string))
-                        .POST(HttpRequest.BodyPublishers.ofString(data))
-                        .header("Content-Type", "application/json")
-                        .timeout(Duration.ofSeconds(5))
-                        .build();
+                httpPost.addHeader("Authorization", authHeaderValue);
             }
 
-            HttpResponse<String> response = client.send(request,
-                    HttpResponse.BodyHandlers.ofString());
-            String result = response.body();
+            CloseableHttpResponse response = client.execute(httpPost);
+
+            String result = EntityUtils.toString(response.getEntity());
 
             JSONObject result_json = new JSONObject(result);
 
             return result_json;
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             //
-            callbacks.printOutput("InterruptedException");
-        } catch (IOException e) {
-            //
-            callbacks.printOutput("IOException");
+            callbacks.printOutput(e.toString());
         }
         return null;
     }
 
-    class ComboItem
-    {
+    class ComboItem {
         private String key;
         private String value;
 
-        public ComboItem(String key, String value)
-        {
+        public ComboItem(String key, String value) {
             this.key = key;
             this.value = value;
         }
 
         @Override
-        public String toString()
-        {
+        public String toString() {
             return key;
         }
 
-        public String getKey()
-        {
+        public String getKey() {
             return key;
         }
 
-        public String getValue()
-        {
+        public String getValue() {
             return value;
         }
     }
