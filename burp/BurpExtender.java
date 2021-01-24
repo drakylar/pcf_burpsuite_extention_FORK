@@ -156,7 +156,8 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
                 //l_basic_auth_login.setBorder(BorderFactory.createEmptyBorder(20, 0, 0, 0));
                 boxHorizontal3.add(l_basic_auth_login);
                 boxHorizontal3.add(basic_auth_login);
-                if (!callbacks.loadExtensionSetting("PCF_URL").equals("")) {
+                String settings_rtl = callbacks.loadExtensionSetting("PCF_URL");
+                if (settings_rtl != null && !settings_rtl.equals("")) {
                     load_settings();
                 }
                 boxHorizontal3.add(l_basic_auth_password);
@@ -324,15 +325,15 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
 
     public void load_settings() {
         l_empty6.setText("Loaded PCF settings!");
-        basic_auth_login.setText(callbacks.loadExtensionSetting("PCF_BASIC_LOGIN"));
-        URL_form.setText(callbacks.loadExtensionSetting("PCF_URL"));
-        email.setText(callbacks.loadExtensionSetting("PCF_EMAIL"));
-        token.setText(callbacks.loadExtensionSetting("PCF_TOKEN"));
+        basic_auth_login.setText((callbacks.loadExtensionSetting("PCF_BASIC_LOGIN") == null) ? "" : callbacks.loadExtensionSetting("PCF_BASIC_LOGIN"));
+        URL_form.setText((callbacks.loadExtensionSetting("PCF_URL") == null) ? "" : callbacks.loadExtensionSetting("PCF_URL"));
+        email.setText((callbacks.loadExtensionSetting("PCF_EMAIL") == null) ? "" : callbacks.loadExtensionSetting("PCF_EMAIL"));
+        token.setText((callbacks.loadExtensionSetting("PCF_TOKEN") == null) ? "" : callbacks.loadExtensionSetting("PCF_TOKEN"));
         list_projects.removeAllItems();
-        String project_uuid = callbacks.loadExtensionSetting("PCF_PROJECT");
+        String project_uuid = (callbacks.loadExtensionSetting("PCF_PROJECT") == null) ? "" : callbacks.loadExtensionSetting("PCF_PROJECT");
         list_projects.addItem(new ComboItem("Saved project (" + project_uuid + ")", project_uuid));
-        password.setText(callbacks.loadExtensionSetting("PCF_PASSWORD"));
-        basic_auth_password.setText(callbacks.loadExtensionSetting("PCF_BASIC_PASSWORD"));
+        password.setText((callbacks.loadExtensionSetting("PCF_PASSWORD") == null) ? "" : callbacks.loadExtensionSetting("PCF_PASSWORD"));
+        basic_auth_password.setText((callbacks.loadExtensionSetting("PCF_BASIC_PASSWORD") == null) ? "" : callbacks.loadExtensionSetting("PCF_PASSWORD"));
     }
 
 
@@ -461,7 +462,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
                             String hostname_uuid = "0";
                             JSONArray hostnames_json = new JSONArray();
                             if (!real_hostname.equals("")) {
-                                hostname_uuid = pcf_add_hostname(host_uuid, real_hostname,"");
+                                hostname_uuid = pcf_add_hostname(host_uuid, real_hostname, "");
                                 hostnames_json.put(hostname_uuid);
                             } else {
                                 for (String header : req_hostnames) {
@@ -476,7 +477,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
                                 }
                             }
 
-                            if (hostname_uuid.equals("0")){
+                            if (hostname_uuid.equals("0")) {
                                 hostnames_json.put(hostname_uuid);
                             }
 
