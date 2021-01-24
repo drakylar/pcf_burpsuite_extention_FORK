@@ -52,10 +52,8 @@ import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Base64;
+import java.util.*;
 import java.util.List;
-import java.util.Properties;
 
 
 public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContextMenuFactory {
@@ -98,6 +96,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
     final JTextArea password = new JTextArea("Qwerty1234", 1, 20);
 
     String[] projects = {};
+    String os = "";
     JComboBox list_projects = new JComboBox(projects);
 
     ////Labels
@@ -125,6 +124,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
     @Override
     public void registerExtenderCallbacks(final burp.IBurpExtenderCallbacks callbacks) {
 
+        String os = System.getProperty("os.name").toLowerCase();
         this.stdout = new PrintWriter(callbacks.getStdout(), true);
         callbacks.registerContextMenuFactory(this);
         this.helpers = callbacks.getHelpers();
@@ -193,8 +193,13 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
                 boxHorizontal7 = Box.createHorizontalBox();
                 b_gen_token = new JButton("Generate token");
                 b_check_token = new JButton("Check token");
-                b_save_settings = new JButton("\uD83D\uDCBE (+ \uD83D\uDD11)");
-                b_save_settings_no_password = new JButton("\uD83D\uDCBE");
+                if (os.contains("win") || os.contains("mac")){
+                    b_save_settings = new JButton("\uD83D\uDCBE (+ \uD83D\uDD11)");
+                    b_save_settings_no_password = new JButton("\uD83D\uDCBE");
+                } else {
+                    b_save_settings = new JButton("Save (+ pwds)");
+                    b_save_settings_no_password = new JButton("Save");
+                }
                 b_load_settings = new JButton("Load settings");
 
 
