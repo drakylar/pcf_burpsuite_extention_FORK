@@ -31,6 +31,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+
 import javax.net.ssl.*;
 import javax.swing.*;
 import java.awt.*;
@@ -38,6 +39,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -437,7 +440,15 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
                         try {
                             burp.IHttpService service = request.getHttpService();
                             String ip = service.getHost();
-                            String host_uuid = pcf_add_host(ip);
+                            InetAddress ip_obj = InetAddress.getByName(ip);
+
+                            String real_ip = ip_obj.getHostAddress();
+                            String real_hostname = "";
+                            if (!real_ip.equals(ip)) {
+                                real_hostname = ip_obj.getHostName();
+                            }
+
+                            String host_uuid = pcf_add_host(real_ip);
                             Integer port = service.getPort();
                             String protocol = service.getProtocol();
                             String port_uuid = pcf_add_port(host_uuid, port, protocol);
@@ -447,19 +458,28 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
                             String req_path = reqInfo.getUrl().getPath();
                             List<String> req_hostnames = reqInfo.getHeaders();
                             String hostname = "";
-                            for (String header : req_hostnames) {
-                                if (header.startsWith("Host: ")) {
-                                    hostname = header.split("Host: ")[1].strip();
+                            String hostname_uuid = "0";
+                            JSONArray hostnames_json = new JSONArray();
+                            if (!real_hostname.equals("")) {
+                                hostname_uuid = pcf_add_hostname(host_uuid, real_hostname,"");
+                                hostnames_json.put(hostname_uuid);
+                            } else {
+                                for (String header : req_hostnames) {
+                                    if (header.startsWith("Host: ")) {
+                                        hostname = header.split("Host: ")[1].strip();
+                                        try {
+                                            hostname_uuid = pcf_add_hostname(host_uuid, hostname, "");
+                                            hostnames_json.put(hostname_uuid);
+                                        } catch (Exception e) {
+                                        }
+                                    }
                                 }
                             }
-                            String hostname_uuid = "0";
-                            if (!hostname.equals("")) {
-                                //add hostname
-                                hostname_uuid = pcf_add_hostname(host_uuid, hostname);
+
+                            if (hostname_uuid.equals("0")){
+                                hostnames_json.put(hostname_uuid);
                             }
 
-                            JSONArray hostnames_json = new JSONArray();
-                            hostnames_json.put(hostname_uuid);
                             if (!services.has(port_uuid)) {
                                 services.put(port_uuid, hostnames_json);
                             } else {
@@ -534,6 +554,21 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
         jo.put("description", "Added from BurpSuite");
         String path = "api/v1/project/" + project_uuid_s + "/host/new";
         return pcf_request(path, jo).getString("host_id");
+    }
+
+    public String pcf_add_hostname(String host_id, String hostname, String description) {
+
+        String project_uuid_s = ((ComboItem) list_projects.getSelectedItem()).getValue();
+
+        JSONObject jo = new JSONObject();
+        String access_token = this.token.getText();
+        jo.put("access_token", access_token);
+        jo.put("host_id", host_id);
+        jo.put("description", description);
+        jo.put("hostname", hostname);
+
+        String path = "api/v1/project/" + project_uuid_s + "/hostname/add";
+        return pcf_request(path, jo).getString("id");
     }
 
     public String pcf_add_port(String host_uuid, int port, String protocol) {
