@@ -701,7 +701,7 @@ public class BurpExtender implements burp.IBurpExtender, burp.ITab, burp.IContex
         jo.put("services", services);
         jo.put("dublicate_find", true);
         String path = "api/v1/project/" + ((ComboItem) list_projects.getSelectedItem()).getValue() + "/issues/create";
-        String issue_uuid = pcf_request(path, jo).getString("issue_uuid");
+        String issue_uuid = pcf_request(path, jo).getString("issue_id");
         return issue_uuid;
     }
 
