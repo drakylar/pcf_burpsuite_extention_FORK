@@ -50,6 +50,7 @@ public class SwingLink extends JLabel {
 
     public void setText(String text, boolean ul){
         String link = ul ? "<u>"+text+"</u>" : text;
+        super.putClientProperty("html.disable", null);
         super.setText("<html><span style=\"color: #0099ff; \">"+
                 link+"</span></html>");
         this.text = text;
